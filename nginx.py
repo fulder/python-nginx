@@ -10,7 +10,6 @@ import re
 
 INDENT = '    '
 
-
 def bump_child_depth(obj, depth):
     children = getattr(obj, 'children', [])
     for child in children:
@@ -117,14 +116,14 @@ class Container(object):
     Locations or Geo blocks.
     """
 
-    def __init__(self, value, *args):
+    def __init__(self, name, value, *args):
         """
         Initialize object.
 
         :param str value: Value to be used in name (e.g. regex for Location)
         :param *args: Any objects to include in this Conf.
         """
-        self.name = ''
+        self.name = name
         self.value = value
         self._depth = 0
         self.children = list(args)
@@ -259,19 +258,9 @@ class Comment(object):
 class Http(Container):
     """Container for HTTP sections in the main NGINX conf file."""
 
-    def __init__(self, *args):
-        """Initialize."""
-        super(Http, self).__init__('', *args)
-        self.name = 'http'
-
 
 class Server(Container):
     """Container for server block configurations."""
-
-    def __init__(self, *args):
-        """Initialize."""
-        super(Server, self).__init__('', *args)
-        self.name = 'server'
 
     @property
     def as_dict(self):
@@ -282,55 +271,25 @@ class Server(Container):
 class Location(Container):
     """Container for Location-based options."""
 
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(Location, self).__init__(value, *args)
-        self.name = 'location'
-
 
 class Events(Container):
     """Container for Event-based options."""
-
-    def __init__(self, *args):
-        """Initialize."""
-        super(Events, self).__init__('', *args)
-        self.name = 'events'
 
 
 class LimitExcept(Container):
     """Container for specifying HTTP method restrictions."""
 
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(LimitExcept, self).__init__(value, *args)
-        self.name = 'limit_except'
-
 
 class Types(Container):
     """Container for MIME type mapping."""
-
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(Types, self).__init__(value, *args)
-        self.name = 'types'
 
 
 class If(Container):
     """Container for If conditionals."""
 
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(If, self).__init__(value, *args)
-        self.name = 'if'
-
 
 class Upstream(Container):
     """Container for upstream configuration (reverse proxy)."""
-
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(Upstream, self).__init__(value, *args)
-        self.name = 'upstream'
 
 
 class Geo(Container):
@@ -340,28 +299,13 @@ class Geo(Container):
     See docs here: http://nginx.org/en/docs/http/ngx_http_geo_module.html
     """
 
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(Geo, self).__init__(value, *args)
-        self.name = 'geo'
-
 
 class Map(Container):
     """Container for map configuration."""
 
-    def __init__(self, value, *args):
-        """Initialize."""
-        super(Map, self).__init__(value, *args)
-        self.name = 'map'
-
 
 class Stream(Container):
     """Container for stream sections in the main NGINX conf file."""
-
-    def __init__(self, *args):
-        """Initialize."""
-        super(Stream, self).__init__('', *args)
-        self.name = 'stream'
 
 
 class Key(object):
@@ -408,73 +352,13 @@ def loads(data, conf=True):
     index = 0
 
     while True:
-        m = re.compile(r'^\s*events\s*{', re.S).search(data[index:])
+        m = re.compile(r'^\s*(location|upstream|server|location|if|limit_except)\s*([^;]*?)\s*{', re.S).search(data[index:])
         if m:
-            e = Events()
-            lopen.insert(0, e)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*http\s*{', re.S).search(data[index:])
-        if m:
-            h = Http()
-            lopen.insert(0, h)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*stream\s*{', re.S).search(data[index:])
-        if m:
-            s = Stream()
-            lopen.insert(0, s)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*server\s*{', re.S).search(data[index:])
-        if m:
-            s = Server()
-            lopen.insert(0, s)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*location\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            l = Location(m.group(1))
-            lopen.insert(0, l)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*if\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            ifs = If(m.group(1))
-            lopen.insert(0, ifs)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*upstream\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            u = Upstream(m.group(1))
-            lopen.insert(0, u)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*geo\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            g = Geo(m.group(1))
-            lopen.insert(0, g)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*map\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            g = Map(m.group(1))
-            lopen.insert(0, g)
-            index += m.end()
-            continue
-
-        m = re.compile(r'^\s*limit_except\s*(.*?)\s*{', re.S).search(data[index:])
-        if m:
-            l = LimitExcept(m.group(1))
-            lopen.insert(0, l)
+            container_name = m.group(1)
+            print(container_name)
+            class_name = re.sub(r'([a-zA-Z0-9]+)_*', lambda m2: m2.group(1).title(), container_name)
+            c = globals()[class_name](m.group(1), m.group(2).strip())
+            lopen.insert(0, c)
             index += m.end()
             continue
 
@@ -490,12 +374,15 @@ def loads(data, conf=True):
 
         m = re.compile(r'^\s*}', re.S).search(data[index:])
         if m:
+            print "CLOSE"
             if isinstance(lopen[0], Container):
+                print "CONTAINER"
                 c = lopen[0]
                 lopen.pop(0)
                 if lopen and isinstance(lopen[0], Container):
                     lopen[0].add(c)
                 else:
+                    print "ADDING TO F"
                     f.add(c) if conf else f.append(c)
             index += m.end()
             continue
@@ -507,6 +394,7 @@ def loads(data, conf=True):
         m = re.compile(key, re.S).search(data[index:])
         if m:
             k = Key(m.group(1), m.group(2) + m.group(3))
+            print "KEY: {}".format(k.name)
             if lopen and isinstance(lopen[0], (Container, Server)):
                 lopen[0].add(k)
             else:
@@ -514,15 +402,7 @@ def loads(data, conf=True):
             index += m.end()
             continue
 
-        m = re.compile(r'^\s*(\S+);', re.S).search(data[index:])
-        if m:
-            k = Key(m.group(1), '')
-            if lopen and isinstance(lopen[0], (Container, Server)):
-                lopen[0].add(k)
-            else:
-                f.add(k) if conf else f.append(k)
-            index += m.end()
-            continue
+
 
         break
 
